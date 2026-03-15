@@ -1,27 +1,30 @@
 import logging
 import os
 import requests
+import asyncio
+import time
 from datetime import datetime
 from collections import defaultdict
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, ConversationHandler, CallbackQueryHandler
+from flask import Flask
+import threading
 
 # ===== НАСТРОЙКИ =====
 BOT_TOKEN = os.environ.get('BOT_TOKEN')
 if not BOT_TOKEN:
-    print("❌ ОШИБКА: переменная окружения BOT_TOKEN не установлена!")
+    print("❌ ОШИБКА: нет BOT_TOKEN!")
     exit(1)
 
 OPENROUTER_API_KEY = os.environ.get('OPENROUTER_API_KEY')
 if not OPENROUTER_API_KEY:
-    print("⚠️ OPENROUTER_API_KEY не найден. Бот не сможет отвечать.")
+    print("⚠️ Нет OPENROUTER_API_KEY, бот не сможет отвечать")
 else:
     print("✅ OpenRouter ключ загружен")
 
-# URL для OpenRouter API
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
-# Состояния для ConversationHandler
+# Состояния
 TEST, DIALOG = range(2)
 
 # Хранилище данных пользователей
@@ -33,7 +36,7 @@ user_data = defaultdict(lambda: {
     "level": 1
 })
 
-# ===== ТЕСТ НА ТРЕВОЖНОСТЬ (GAD-7) =====
+# ===== ТЕСТ GAD-7 =====
 GAD7_QUESTIONS = [
     "1. Чувствовали ли вы нервозность, тревогу или страх?",
     "2. Не могли ли вы перестать беспокоиться или контролировать беспокойство?",
@@ -108,25 +111,20 @@ CRISIS_CONTACTS = """
 Ты не один. Пожалуйста, обратись за помощью. ❤️
 """
 
-# ===== ФУНКЦИЯ ЗАПРОСА К НЕЙРОСЕТИ (OpenRouter, бесплатные модели) =====
-import time
-import asyncio
-
+# ===== ФУНКЦИЯ ЗАПРОСА К OPENROUTER =====
 async def ask_ai(user_message, user_name):
     if not OPENROUTER_API_KEY:
         return "⚠️ Ключ OpenRouter не настроен. Добавь OPENROUTER_API_KEY в переменные окружения."
 
-    model = "nvidia/llama-3.1-nemotron-nano-8b-v1:free"  # рабочая бесплатная модель
-
     headers = {
         "Authorization": f"Bearer {OPENROUTER_API_KEY}",
         "Content-Type": "application/json",
-        "HTTP-Referer": "https://t.me/your_bot_username",
+        "HTTP-Referer": "https://t.me/your_bot_username",  # замени на username бота
         "X-Title": "Psychologist Bot"
     }
 
     payload = {
-        "model": model,
+        "model": "openrouter/free",  # авто-выбор бесплатной модели
         "messages": [
             {"role": "system", "content": f"Ты эмпатичный психолог. Имя клиента: {user_name}. Отвечай тепло, поддерживающе, задавай уточняющие вопросы. Не давай пустых советов."},
             {"role": "user", "content": user_message}
@@ -157,37 +155,6 @@ async def ask_ai(user_message, user_name):
             await asyncio.sleep(1)
 
     return "❌ Слишком много запросов. Попробуй позже."
-
-  # Модель от Google, бесплатно
-
-        headers = {
-            "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-            "Content-Type": "application/json",
-            "HTTP-Referer": "https://t.me/your_bot_username",  # можно заменить на username бота
-            "X-Title": "Psychologist Bot"
-        }
-
-        payload = {
-            "model": model,
-            "messages": [
-                {"role": "system", "content": f"Ты эмпатичный психолог. Имя клиента: {user_name}. Отвечай тепло, поддерживающе, задавай уточняющие вопросы. Не давай пустых советов."},
-                {"role": "user", "content": user_message}
-            ],
-            "temperature": 0.7,
-            "max_tokens": 500
-        }
-
-        response = requests.post(OPENROUTER_URL, headers=headers, json=payload, timeout=30)
-        data = response.json()
-
-        if response.status_code == 200:
-            return data["choices"][0]["message"]["content"]
-        else:
-            error_detail = data.get("error", {}).get("message", "Неизвестная ошибка")
-            return f"❌ Ошибка OpenRouter: {error_detail} (код {response.status_code})"
-
-    except Exception as e:
-        return f"❌ Ошибка при запросе: {e}"
 
 # ===== ОБРАБОТЧИКИ КОМАНД =====
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -303,17 +270,13 @@ def generate_answer_keyboard():
 async def test_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-
     step = context.user_data.get('test_step', 0)
     answers = context.user_data.get('test_answers', [])
-
     score = int(query.data.split('_')[1])
     answers.append(score)
-
     step += 1
     context.user_data['test_step'] = step
     context.user_data['test_answers'] = answers
-
     if step < len(GAD7_QUESTIONS):
         await query.edit_message_text(
             f"📊 **Вопрос {step+1}/{len(GAD7_QUESTIONS)}**\n\n{GAD7_QUESTIONS[step]}",
@@ -369,7 +332,6 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     data = query.data
-
     if data == "menu":
         keyboard = [
             [KeyboardButton("🧘 Упражнения"), KeyboardButton("📝 Задания")],
@@ -379,7 +341,6 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         await query.message.reply_text("Главное меню:", reply_markup=reply_markup)
         return
-
     if data.startswith("ex_"):
         key = data[3:]
         ex = EXERCISES.get(key)
@@ -397,7 +358,6 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         keyboard.append([InlineKeyboardButton("◀️ В меню", callback_data="menu")])
         reply_markup = InlineKeyboardMarkup(keyboard)
         await query.edit_message_text("Выбери упражнение:", reply_markup=reply_markup)
-
     elif data.startswith("task_"):
         key = data[5:]
         tsk = TASKS.get(key)
@@ -416,7 +376,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup = InlineKeyboardMarkup(keyboard)
         await query.edit_message_text("Выбери задание:", reply_markup=reply_markup)
 
-# ===== ОБЩЕНИЕ С НЕЙРОСЕТЬЮ =====
+# ===== ОБЩЕНИЕ =====
 async def talk(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         user_id = update.effective_user.id
@@ -424,8 +384,7 @@ async def talk(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_name = update.effective_user.first_name
 
         user_data[user_id]["messages_count"] += 1
-        msg_count = user_data[user_id]["messages_count"]
-        user_data[user_id]["level"] = (msg_count // 10) + 1
+        user_data[user_id]["level"] = (user_data[user_id]["messages_count"] // 10) + 1
 
         if text == "🧘 Упражнения":
             return await show_exercises(update, context)
@@ -436,7 +395,7 @@ async def talk(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif text == "🆘 Помощь":
             return await crisis(update, context)
         elif text == "💬 Поговорить":
-            await update.message.reply_text("Я слушаю. Расскажи, что тебя беспокоит.")
+            await update.message.reply_text("Я слушаю. Расскажи, что тебя беспокоит?")
             return
 
         crisis_words = ["самоубийств", "смерть", "умереть", "покончить", "не хочу жить"]
@@ -447,13 +406,9 @@ async def talk(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply = await ask_ai(text, user_name)
         await update.message.reply_text(reply)
     except Exception as e:
-        await update.message.reply_text(f"🔥 Критическая ошибка: {e}")
+        await update.message.reply_text(f"🔥 Ошибка: {e}")
 
-# ===== ДОБАВЛЕНО ДЛЯ RENDER =====
-from flask import Flask
-import threading
-import asyncio
-
+# ===== RENDER =====
 web_app = Flask(__name__)
 
 @web_app.route('/')
@@ -469,10 +424,9 @@ def run_web():
     web_app.run(host='0.0.0.0', port=port)
 
 threading.Thread(target=run_web).start()
-print("🌐 Веб-сервер для Render запущен")
-# ===== КОНЕЦ ДОБАВКИ =====
+print("🌐 Веб-сервер запущен")
 
-# ===== ОСНОВНАЯ ФУНКЦИЯ =====
+# ===== MAIN =====
 def main():
     try:
         try:
@@ -490,7 +444,6 @@ def main():
             states={TEST: [CallbackQueryHandler(test_handler, pattern="^ans_")]},
             fallbacks=[CommandHandler("start", start)]
         )
-
         app.add_handler(CommandHandler("start", start))
         app.add_handler(CommandHandler("help", help_command))
         app.add_handler(CommandHandler("profile", profile))
@@ -500,18 +453,17 @@ def main():
         app.add_handler(CommandHandler("crisis", crisis))
         app.add_handler(CommandHandler("task", task_command))
         app.add_handler(test_conv)
-
         app.add_handler(MessageHandler(filters.Regex("^🧘 Упражнения$"), show_exercises))
         app.add_handler(MessageHandler(filters.Regex("^📝 Задания$"), show_tasks))
         app.add_handler(MessageHandler(filters.Regex("^🆘 Помощь$"), crisis))
         app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, talk))
         app.add_handler(CallbackQueryHandler(button_callback, pattern="^(ex_|task_|back_|menu|back_ex|back_task)$"))
 
-        print("✅ Бот-психолог запущен!")
+        print("✅ Бот запущен!")
         app.run_polling()
     except Exception as e:
         import traceback
-        print("❌ Критическая ошибка в main:")
+        print("❌ Ошибка в main:")
         traceback.print_exc()
 
 if __name__ == "__main__":
