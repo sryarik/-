@@ -116,7 +116,7 @@ async def ask_ai(user_message, user_name):
     try:
         # Используем бесплатную модель Google Gemma (или другую бесплатную)
         # Список бесплатных моделей: https://openrouter.ai/models?q=free
-        model = "google/gemma-2-9b-it:free"  # Модель от Google, бесплатно
+        model = "meta-llama/llama-3.3-70b-instruct:free"  # Модель от Google, бесплатно
 
         headers = {
             "Authorization": f"Bearer {OPENROUTER_API_KEY}",
