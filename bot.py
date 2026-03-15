@@ -109,14 +109,54 @@ CRISIS_CONTACTS = """
 """
 
 # ===== ФУНКЦИЯ ЗАПРОСА К НЕЙРОСЕТИ (OpenRouter, бесплатные модели) =====
+import time
+import asyncio
+
 async def ask_ai(user_message, user_name):
     if not OPENROUTER_API_KEY:
         return "⚠️ Ключ OpenRouter не настроен. Добавь OPENROUTER_API_KEY в переменные окружения."
 
-    try:
-        # Используем бесплатную модель Google Gemma (или другую бесплатную)
-        # Список бесплатных моделей: https://openrouter.ai/models?q=free
-        meta-llama/llama-3.2-3b-instruct:free
+    model = "nvidia/llama-3.1-nemotron-nano-8b-v1:free"  # рабочая бесплатная модель
+
+    headers = {
+        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://t.me/your_bot_username",
+        "X-Title": "Psychologist Bot"
+    }
+
+    payload = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": f"Ты эмпатичный психолог. Имя клиента: {user_name}. Отвечай тепло, поддерживающе, задавай уточняющие вопросы. Не давай пустых советов."},
+            {"role": "user", "content": user_message}
+        ],
+        "temperature": 0.7,
+        "max_tokens": 500
+    }
+
+    for attempt in range(3):
+        try:
+            response = requests.post(OPENROUTER_URL, headers=headers, json=payload, timeout=30)
+            data = response.json()
+
+            if response.status_code == 200:
+                return data["choices"][0]["message"]["content"]
+
+            if response.status_code == 429:
+                wait_time = 2 ** attempt  # 1, 2, 4 секунды
+                await asyncio.sleep(wait_time)
+                continue
+
+            error_detail = data.get("error", {}).get("message", "Неизвестная ошибка")
+            return f"❌ Ошибка OpenRouter: {error_detail} (код {response.status_code})"
+
+        except Exception as e:
+            if attempt == 2:
+                return f"❌ Ошибка при запросе: {e}"
+            await asyncio.sleep(1)
+
+    return "❌ Слишком много запросов. Попробуй позже."
 
   # Модель от Google, бесплатно
 
