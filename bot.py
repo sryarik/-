@@ -408,6 +408,23 @@ async def show_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=reply_markup,
         parse_mode='Markdown'
     )
+    async def handle_task_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Начало интерактивного задания"""
+    query = update.callback_query
+    await query.answer()
+    
+    task_key = query.data.replace("task_start_", "")
+    context.user_data['current_task'] = task_key
+    context.user_data['task_answers'] = []
+    context.user_data['task_step'] = 0
+    
+    task = TASKS[task_key]
+    await query.edit_message_text(
+        f"📝 **{task['name']}**\n_{task['desc']}_\n\n"
+        f"**Вопрос 1 из {len(task['questions'])}:**\n{task['questions'][0]}",
+        parse_mode='Markdown'
+    )
+    return TASK_STATE
 
 async def handle_task_answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработка ответов на вопросы задания с обратной связью"""
