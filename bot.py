@@ -652,4 +652,6 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         keyboard = [
             [KeyboardButton("🧘 Упражнения"), KeyboardButton("📝 Задания")],
             [KeyboardButton("💬 Тренировка общения"), KeyboardButton("📊 Тест на тревожность")],
-            [KeyboardButton("🆘 Помощь
+            [KeyboardButton("🆘 Помощь"), KeyboardButton("💬 Поговорить")]
+        ]
+        reply
