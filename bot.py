@@ -26,7 +26,8 @@ OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 # Состояния
 TEST, DIALOG = range(2)
-
+# Добавь в начало файла (после TEST, DIALOG)
+TASK_STATE = 3
 # Хранилище данных пользователей
 user_data = defaultdict(lambda: {
     "name": None,
@@ -38,31 +39,38 @@ user_data = defaultdict(lambda: {
 
 # ===== ТЕСТ GAD-7 =====
 GAD7_QUESTIONS = [
-    "1. Чувствовали ли вы нервозность, тревогу или страх?",
-    "2. Не могли ли вы перестать беспокоиться или контролировать беспокойство?",
-    "3. Слишком сильно беспокоились о разных вещах?",
-    "4. Трудно ли вам было расслабиться?",
-    "5. Были ли вы настолько беспокойны, что не могли усидеть на месте?",
-    "6. Легко ли вы раздражались или злились?",
-    "7. Чувствовали ли вы страх, будто вот-вот случится что-то ужасное?"
+# ===== ТЕСТ НА ТРЕВОЖНОСТЬ (УЛУЧШЕННЫЙ) =====
+GAD7_QUESTIONS = [
+    "1️⃣ Чувствуете ли вы напряжение, не можете расслабиться?",
+    "2️⃣ Беспокоитесь ли вы по пустякам больше, чем обычно?",
+    "3️⃣ Часто ли вы испытываете страх, что случится что-то плохое?",
+    "4️⃣ Трудно ли вам заснуть из-за тревожных мыслей?",
+    "5️⃣ Бывает ли, что сердце бьётся чаще без видимой причины?",
+    "6️⃣ Чувствуете ли вы, что не можете справиться с повседневными задачами?",
+    "7️⃣ Бывает ли, что вы избегаете ситуаций из-за страха?",
+    "8️⃣ Часто ли вы чувствуете раздражение или злость?",
+    "9️⃣ Бывает ли, что вы не можете усидеть на месте?",
+    "🔟 Чувствуете ли вы, что всё идёт не так, как хотелось бы?"
+]
 ]
 
 ANSWERS = [
-    ("Совсем нет", 0),
-    ("Несколько дней", 1),
-    ("Более половины дней", 2),
-    ("Почти каждый день", 3)
+    ("✅ Совсем нет", 0),
+    ("⚠️ Иногда (1-3 дня в неделю)", 1),
+    ("😟 Часто (4-6 дней в неделю)", 2),
+    ("😰 Почти каждый день", 3)
+]
 ]
 
 def interpret_gad7(score):
-    if score < 5:
-        return "минимальный уровень тревоги"
-    elif score < 10:
-        return "лёгкая тревога"
-    elif score < 15:
-        return "умеренная тревога"
+    if score < 8:
+        return "🌿 **Низкий уровень тревоги**\nВы в порядке. Поддерживайте режим сна, отдыхайте, занимайтесь приятными делами."
+    elif score < 14:
+        return "🌤️ **Умеренный уровень тревоги**\nСтоит уделить внимание самочувствию. Попробуй упражнения на дыхание и заземление."
+    elif score < 20:
+        return "⚠️ **Высокий уровень тревоги**\nРекомендуется обратиться к психологу. Я всегда готов поддержать тебя."
     else:
-        return "выраженная тревога (рекомендуется обратиться к специалисту)"
+        return "🆘 **Очень высокий уровень тревоги**\nНастоятельно рекомендую обратиться к специалисту. Позвони по телефону доверия: 8-800-2000-122"
 
 # ===== УПРАЖНЕНИЯ =====
 EXERCISES = {
@@ -84,22 +92,36 @@ EXERCISES = {
 }
 
 # ===== ЗАДАНИЯ =====
+# ===== ЗАДАНИЯ (ИНТЕРАКТИВНЫЕ) =====
 TASKS = {
-    "achievements": {
-        "name": "🏆 Список достижений",
-        "desc": "Вспомните 3 своих успеха за последнюю неделю",
-        "task": "Запишите их в блокнот. Читайте список, когда сомневаетесь в себе."
+    "mood_diary": {
+        "name": "📓 Дневник эмоций",
+        "desc": "Отслеживание настроения",
+        "questions": [
+            "Какое настроение у тебя сейчас?",
+            "Что произошло сегодня?",
+            "Как ты справился с эмоциями?"
+        ]
     },
-    "affirmations": {
-        "name": "✨ Аффирмации",
-        "desc": "Позитивные утверждения о себе",
-        "task": "Каждое утро говорите себе: «Я принимаю себя таким(ой), какой(ая) я есть», «Я способен(на) справляться с трудностями»."
+    "gratitude": {
+        "name": "🙏 Дневник благодарности",
+        "desc": "Фокус на позитивном",
+        "questions": [
+            "За что ты благодарен сегодня?",
+            "Кто сделал твой день лучше?",
+            "Что хорошего случилось?"
+        ]
     },
-    "thoughts": {
-        "name": "📝 Дневник мыслей",
-        "desc": "Отслеживание негативных мыслей",
-        "task": "Запишите ситуацию, которая вызвала тревогу. Рядом напишите более реалистичную мысль."
+    "reframing": {
+        "name": "🔄 Смена перспективы",
+        "desc": "Работа с негативными мыслями",
+        "questions": [
+            "Какая мысль тебя беспокоит?",
+            "Что говорит тебе страх?",
+            "Что бы ты сказал другу в такой ситуации?"
+        ]
     }
+}
 }
 
 # ===== КРИЗИСНЫЕ КОНТАКТЫ =====
@@ -320,13 +342,16 @@ async def show_exercises(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Выбери упражнение:", reply_markup=reply_markup)
 
 async def show_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [
-        [InlineKeyboardButton(tsk["name"], callback_data=f"task_{key}")]
-        for key, tsk in TASKS.items()
-    ]
+    keyboard = []
+    for key, task in TASKS.items():
+        keyboard.append([InlineKeyboardButton(task["name"], callback_data=f"task_start_{key}")])
     keyboard.append([InlineKeyboardButton("◀️ В меню", callback_data="menu")])
     reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text("Выбери задание:", reply_markup=reply_markup)
+    await update.message.reply_text(
+        "📝 **Задания для саморазвития**\n\nВыбери задание, и я задам тебе несколько вопросов:",
+        reply_markup=reply_markup,
+        parse_mode='Markdown'
+    )
 
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -375,6 +400,64 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         keyboard.append([InlineKeyboardButton("◀️ В меню", callback_data="menu")])
         reply_markup = InlineKeyboardMarkup(keyboard)
         await query.edit_message_text("Выбери задание:", reply_markup=reply_markup)
+        # ===== ОБРАБОТЧИК ЗАДАНИЙ =====
+async def handle_task_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Начало интерактивного задания"""
+    query = update.callback_query
+    await query.answer()
+    
+    task_key = query.data.replace("task_start_", "")
+    context.user_data['current_task'] = task_key
+    context.user_data['task_answers'] = []
+    context.user_data['task_step'] = 0
+    
+    task = TASKS[task_key]
+    await query.edit_message_text(
+        f"📝 **{task['name']}**\n_{task['desc']}_\n\n"
+        f"**Вопрос 1 из {len(task['questions'])}:**\n{task['questions'][0]}",
+        parse_mode='Markdown'
+    )
+    return TASK_STATE
+
+async def handle_task_answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработка ответов на вопросы задания"""
+    user_id = update.effective_user.id
+    text = update.message.text
+    
+    current_task = context.user_data.get('current_task')
+    if not current_task:
+        return DIALOG
+    
+    step = context.user_data.get('task_step', 0)
+    answers = context.user_data.get('task_answers', [])
+    task = TASKS[current_task]
+    
+    answers.append(text)
+    context.user_data['task_answers'] = answers
+    step += 1
+    context.user_data['task_step'] = step
+    
+    if step < len(task['questions']):
+        await update.message.reply_text(
+            f"📝 **Вопрос {step+1} из {len(task['questions'])}:**\n{task['questions'][step]}",
+            parse_mode='Markdown'
+        )
+        return TASK_STATE
+    else:
+        # Отправляем ответы в нейросеть для анализа
+        analysis = await ask_ai(
+            f"Пользователь выполнил задание '{task['name']}'. Его ответы:\n" + "\n".join(answers),
+            "психолог"
+        )
+        
+        result_text = f"✨ **Задание выполнено!**\n\n{analysis}\n\nТы молодец! 🌟\n\nНажми /start чтобы вернуться в меню"
+        await update.message.reply_text(result_text, parse_mode='Markdown')
+        
+        # Очищаем данные
+        del context.user_data['current_task']
+        del context.user_data['task_answers']
+        del context.user_data['task_step']
+        return DIALOG
 
 # ===== ОБЩЕНИЕ =====
 async def talk(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -436,6 +519,7 @@ def main():
             asyncio.set_event_loop(loop)
 
         app = Application.builder().token(BOT_TOKEN).build()
+        
         test_conv = ConversationHandler(
             entry_points=[
                 CommandHandler("test", test_command),
@@ -444,6 +528,18 @@ def main():
             states={TEST: [CallbackQueryHandler(test_handler, pattern="^ans_")]},
             fallbacks=[CommandHandler("start", start)]
         )
+        
+        task_conv = ConversationHandler(
+            entry_points=[CallbackQueryHandler(handle_task_start, pattern="^task_start_")],
+            states={
+                TASK_STATE: [
+                    CallbackQueryHandler(handle_task_start, pattern="^task_start_"),
+                    MessageHandler(filters.TEXT & ~filters.COMMAND, handle_task_answer)
+                ]
+            },
+            fallbacks=[CommandHandler("start", start)]
+        )
+        
         app.add_handler(CommandHandler("start", start))
         app.add_handler(CommandHandler("help", help_command))
         app.add_handler(CommandHandler("profile", profile))
@@ -453,37 +549,37 @@ def main():
         app.add_handler(CommandHandler("crisis", crisis))
         app.add_handler(CommandHandler("task", task_command))
         app.add_handler(test_conv)
+        app.add_handler(task_conv)
+        
         app.add_handler(MessageHandler(filters.Regex("^🧘 Упражнения$"), show_exercises))
         app.add_handler(MessageHandler(filters.Regex("^📝 Задания$"), show_tasks))
         app.add_handler(MessageHandler(filters.Regex("^🆘 Помощь$"), crisis))
         app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, talk))
         app.add_handler(CallbackQueryHandler(button_callback, pattern="^(ex_|task_|back_|menu|back_ex|back_task)$"))
 
+        # ===== ЗАПУСКАЕМ ПИНГ ВНУТРИ MAIN (ПЕРЕД polling) =====
+        def self_ping():
+            url = os.environ.get('RENDER_EXTERNAL_URL', 'https://psychologist-bot.onrender.com')
+            while True:
+                time.sleep(300)
+                try:
+                    requests.get(f"{url}/health", timeout=10)
+                    print("📡 Пинг выполнен")
+                except Exception as e:
+                    print(f"❌ Пинг не удался: {e}")
+
+        ping_thread = threading.Thread(target=self_ping, daemon=True)
+        ping_thread.start()
+        print("🔄 Автопинг запущен — бот не уснёт")
+        # ===== КОНЕЦ БЛОКА ПИНГА =====
+
         print("✅ Бот запущен!")
         app.run_polling()
+        
     except Exception as e:
         import traceback
         print("❌ Ошибка в main:")
         traceback.print_exc()
-        import requests
-import threading
-import time
-
-def self_ping():
-    url = os.environ.get('RENDER_EXTERNAL_URL', 'https://psychologist-bot.onrender.com')
-    while True:
-        time.sleep(300)  # каждые 5 минут
-        try:
-            requests.get(f"{url}/health", timeout=10)
-            print("📡 Пинг выполнен")
-        except Exception as e:
-            print(f"❌ Пинг не удался: {e}")
-
-# Запускаем пинг в отдельном потоке
-ping_thread = threading.Thread(target=self_ping, daemon=True)
-ping_thread.start()
-print("🔄 Автопинг запущен — бот не уснёт")
-        
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
