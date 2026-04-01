@@ -27,6 +27,7 @@ OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 # Состояния
 TEST, DIALOG = range(2)
 TASK_STATE = 3
+TRAINING_STATE = 4
 
 # Хранилище данных пользователей
 user_data = defaultdict(lambda: {
@@ -37,7 +38,7 @@ user_data = defaultdict(lambda: {
     "level": 1
 })
 
-# ===== ТЕСТ НА ТРЕВОЖНОСТЬ (УЛУЧШЕННЫЙ) =====
+# ===== ТЕСТ НА ТРЕВОЖНОСТЬ =====
 GAD7_QUESTIONS = [
     "1️⃣ Чувствуете ли вы напряжение, не можете расслабиться?",
     "2️⃣ Беспокоитесь ли вы по пустякам больше, чем обычно?",
@@ -68,7 +69,6 @@ def interpret_gad7(score):
     else:
         return "🆘 **Очень высокий уровень тревоги**\nНастоятельно рекомендую обратиться к специалисту. Позвони по телефону доверия: 8-800-2000-122"
 
-# ===== УПРАЖНЕНИЯ =====
 # ===== УПРАЖНЕНИЯ =====
 EXERCISES = {
     "breath_478": {
@@ -219,7 +219,7 @@ async def ask_ai(user_message, user_name):
     }
 
     payload = {
-        "model": "openrouter/free",
+        "model": "google/gemma-2-9b-it:free",
         "messages": [
             {"role": "system", "content": f"Ты эмпатичный психолог. Имя клиента: {user_name}. Отвечай тепло, поддерживающе, задавай уточняющие вопросы. Не давай пустых советов."},
             {"role": "user", "content": user_message}
@@ -259,8 +259,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     keyboard = [
         [KeyboardButton("🧘 Упражнения"), KeyboardButton("📝 Задания")],
-        [KeyboardButton("📊 Тест на тревожность"), KeyboardButton("🆘 Помощь")],
-        [KeyboardButton("💬 Поговорить")]
+        [KeyboardButton("💬 Тренировка общения"), KeyboardButton("📊 Тест на тревожность")],
+        [KeyboardButton("🆘 Помощь"), KeyboardButton("💬 Поговорить")]
     ]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
     await update.message.reply_text(
@@ -434,6 +434,110 @@ async def task_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def crisis(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(CRISIS_CONTACTS, parse_mode='Markdown')
 
+# ===== ТРЕНИРОВКА ОБЩЕНИЯ =====
+async def training_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Меню тренировки навыков общения"""
+    keyboard = [
+        [InlineKeyboardButton("🗣️ Начать разговор", callback_data="training_start")],
+        [InlineKeyboardButton("💭 Как завязать разговор", callback_data="training_tips")],
+        [InlineKeyboardButton("🔄 Сценарии для практики", callback_data="training_scenarios")],
+        [InlineKeyboardButton("◀️ Назад", callback_data="menu")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text(
+        "💬 **Тренировка навыков общения**\n\n"
+        "Здесь ты можешь потренироваться начинать разговор, узнавать, о чём говорить, и практиковаться в безопасной среде.\n\n"
+        "Выбери, что хочешь сделать:",
+        reply_markup=reply_markup,
+        parse_mode='Markdown'
+    )
+    return TRAINING_STATE
+
+async def training_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработка действий в тренировке"""
+    query = update.callback_query
+    await query.answer()
+    data = query.data
+    
+    if data == "training_tips":
+        tips_text = """
+💡 **Как начать разговор (простые фразы):**
+
+• «Привет, я заметил, что мы в одной группе/классе. Как тебе тут?»
+• «Извини, не подскажешь...» (о чём-то нейтральном)
+• «Мне понравилась твоя футболка/книга/стиль. Где ты такое нашёл?»
+• «Привет! Как прошёл твой день?»
+
+💡 **О чём говорить:**
+• Общие интересы (музыка, фильмы, игры, учёба)
+• Нейтральные темы (погода, события, новости)
+• Комплименты (искренние, о чём-то конкретном)
+
+💡 **Что делать, если страшно:**
+• Сделай 3 глубоких вдоха (упражнение есть в меню)
+• Напомни себе: «Я пробую, а не обязан»
+• Начни с малого — просто улыбнись и скажи «Привет»
+"""
+        await query.edit_message_text(tips_text, parse_mode='Markdown')
+        kb = [[InlineKeyboardButton("◀️ Назад к тренировкам", callback_data="training_back")]]
+        await query.message.reply_text("Что дальше?", reply_markup=InlineKeyboardMarkup(kb))
+        
+    elif data == "training_scenarios":
+        scenarios = """
+🎭 **Сценарии для практики:**
+
+1️⃣ **В школе/университете:**
+Ты видишь одногруппника, который сидит один. Как начнёшь разговор?
+
+2️⃣ **В компании друзей:**
+Ты хочешь присоединиться к разговору, но не знаешь тему. Что скажешь?
+
+3️⃣ **Новое место:**
+Ты пришёл на кружок/секцию впервые. Как познакомиться с другими?
+
+4️⃣ **Знакомство в интернете:**
+Хочешь написать человеку, но боишься показаться навязчивым. С чего начнёшь?
+
+5️⃣ **Когда нужно попросить о помощи:**
+Тебе нужна помощь с учебой/работой. Как обратиться к незнакомцу?
+
+💡 **Попробуй написать мне, как бы ты начал разговор в одной из этих ситуаций, и я помогу его улучшить!**
+"""
+        await query.edit_message_text(scenarios, parse_mode='Markdown')
+        kb = [[InlineKeyboardButton("◀️ Назад к тренировкам", callback_data="training_back")]]
+        await query.message.reply_text("Готов(а) попробовать? Напиши свой вариант!", reply_markup=InlineKeyboardMarkup(kb))
+        context.user_data['training_mode'] = 'scenario_practice'
+        
+    elif data == "training_start":
+        await query.edit_message_text(
+            "🎭 **Практика общения**\n\n"
+            "Представь, что я — новый знакомый. Давай попробуем начать разговор.\n\n"
+            "Напиши что-нибудь, с чего можно начать общение. Не бойся ошибиться — это просто тренировка!",
+            parse_mode='Markdown'
+        )
+        context.user_data['training_mode'] = 'conversation_practice'
+        
+    elif data == "training_back":
+        return await training_menu_from_callback(query)
+    
+    return TRAINING_STATE
+
+async def training_menu_from_callback(query):
+    keyboard = [
+        [InlineKeyboardButton("🗣️ Начать разговор", callback_data="training_start")],
+        [InlineKeyboardButton("💭 Как завязать разговор", callback_data="training_tips")],
+        [InlineKeyboardButton("🔄 Сценарии для практики", callback_data="training_scenarios")],
+        [InlineKeyboardButton("◀️ В меню", callback_data="menu")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await query.edit_message_text(
+        "💬 **Тренировка навыков общения**\n\n"
+        "Выбери, что хочешь сделать:",
+        reply_markup=reply_markup,
+        parse_mode='Markdown'
+    )
+    return TRAINING_STATE
+
 # ===== ОБРАБОТЧИКИ КНОПОК =====
 async def show_exercises(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
@@ -547,178 +651,5 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if data == "menu":
         keyboard = [
             [KeyboardButton("🧘 Упражнения"), KeyboardButton("📝 Задания")],
-            [KeyboardButton("📊 Тест на тревожность"), KeyboardButton("🆘 Помощь")],
-            [KeyboardButton("💬 Поговорить")]
-        ]
-        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-        await query.message.reply_text("Главное меню:", reply_markup=reply_markup)
-        return
-    
-    if data.startswith("ex_"):
-        key = data[3:]
-        ex = EXERCISES.get(key)
-        if ex:
-            text = f"**{ex['name']}**\n_{ex['desc']}_\n\n{ex['text']}"
-            await query.edit_message_text(text, parse_mode='Markdown')
-            kb = [[InlineKeyboardButton("◀️ К упражнениям", callback_data="back_ex")]]
-            await query.message.reply_text("Выполни упражнение. Когда захочешь вернуться, нажми кнопку.",
-                                           reply_markup=InlineKeyboardMarkup(kb))
-        return
-    
-    if data == "back_ex":
-        keyboard = [
-            [InlineKeyboardButton(ex["name"], callback_data=f"ex_{key}")]
-            for key, ex in EXERCISES.items()
-        ]
-        keyboard.append([InlineKeyboardButton("◀️ В меню", callback_data="menu")])
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        await query.edit_message_text("Выбери упражнение:", reply_markup=reply_markup)
-        return
-    
-    if data.startswith("task_start_"):
-        return await handle_task_start(update, context)
-    
-    if data == "back_task":
-        await show_tasks_from_callback(query)
-        return
-
-async def show_tasks_from_callback(query):
-    keyboard = []
-    for key, task in TASKS.items():
-        keyboard.append([InlineKeyboardButton(task["name"], callback_data=f"task_start_{key}")])
-    keyboard.append([InlineKeyboardButton("◀️ В меню", callback_data="menu")])
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await query.edit_message_text(
-        "📝 **Задания для саморазвития**\n\nВыбери задание:",
-        reply_markup=reply_markup,
-        parse_mode='Markdown'
-    )
-
-# ===== ОБЩЕНИЕ =====
-async def talk(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    try:
-        user_id = update.effective_user.id
-        text = update.message.text
-        user_name = update.effective_user.first_name
-
-        user_data[user_id]["messages_count"] += 1
-        user_data[user_id]["level"] = (user_data[user_id]["messages_count"] // 10) + 1
-
-        if text == "🧘 Упражнения":
-            return await show_exercises(update, context)
-        elif text == "📝 Задания":
-            return await show_tasks(update, context)
-        elif text == "📊 Тест на тревожность":
-            return await test_command(update, context)
-        elif text == "🆘 Помощь":
-            return await crisis(update, context)
-        elif text == "💬 Поговорить":
-            await update.message.reply_text("Я слушаю. Расскажи, что тебя беспокоит?")
-            return
-
-        crisis_words = ["самоубийств", "смерть", "умереть", "покончить", "не хочу жить"]
-        if any(word in text.lower() for word in crisis_words):
-            await update.message.reply_text(CRISIS_CONTACTS, parse_mode='Markdown')
-
-        await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
-        reply = await ask_ai(text, user_name)
-        await update.message.reply_text(reply)
-    except Exception as e:
-        await update.message.reply_text(f"🔥 Ошибка: {e}")
-
-# ===== RENDER =====
-web_app = Flask(__name__)
-
-@web_app.route('/')
-def home():
-    return "🤖 Бот-психолог работает!"
-
-@web_app.route('/health')
-def health():
-    return "OK", 200
-
-def run_web():
-    port = int(os.environ.get('PORT', 5000))
-    web_app.run(host='0.0.0.0', port=port)
-
-threading.Thread(target=run_web).start()
-print("🌐 Веб-сервер запущен")
-
-# ===== MAIN =====
-def main():
-    try:
-        try:
-            asyncio.get_event_loop()
-        except RuntimeError:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-
-        app = Application.builder().token(BOT_TOKEN).build()
-        
-        test_conv = ConversationHandler(
-            entry_points=[
-                CommandHandler("test", test_command),
-                MessageHandler(filters.Regex("^📊 Тест на тревожность$"), test_command)
-            ],
-            states={TEST: [CallbackQueryHandler(test_handler, pattern="^ans_")]},
-            fallbacks=[CommandHandler("start", start)]
-        )
-        
-        task_conv = ConversationHandler(
-            entry_points=[
-                CommandHandler("task", task_command),
-                MessageHandler(filters.Regex("^📝 Задания$"), task_command),
-                CallbackQueryHandler(handle_task_start, pattern="^task_start_")
-            ],
-            states={
-                TASK_STATE: [
-                    MessageHandler(filters.TEXT & ~filters.COMMAND, handle_task_answer),
-                    CallbackQueryHandler(handle_task_start, pattern="^task_start_"),
-                    CallbackQueryHandler(show_tasks_from_callback, pattern="^back_task$"),
-                    CallbackQueryHandler(button_callback, pattern="^menu$")
-                ]
-            },
-            fallbacks=[CommandHandler("start", start), CommandHandler("menu", start)]
-        )
-        
-        app.add_handler(CommandHandler("start", start))
-        app.add_handler(CommandHandler("help", help_command))
-        app.add_handler(CommandHandler("profile", profile))
-        app.add_handler(CommandHandler("dialog", dialog))
-        app.add_handler(CommandHandler("tips", tips))
-        app.add_handler(CommandHandler("levels", levels))
-        app.add_handler(CommandHandler("crisis", crisis))
-        app.add_handler(test_conv)
-        app.add_handler(task_conv)
-        
-        app.add_handler(MessageHandler(filters.Regex("^🧘 Упражнения$"), show_exercises))
-        app.add_handler(MessageHandler(filters.Regex("^📝 Задания$"), show_tasks))
-        app.add_handler(MessageHandler(filters.Regex("^🆘 Помощь$"), crisis))
-        app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, talk))
-        app.add_handler(CallbackQueryHandler(button_callback, pattern="^(ex_|back_ex|menu|task_start_|back_task)$"))
-
-        def self_ping():
-            url = os.environ.get('RENDER_EXTERNAL_URL', 'https://telegram-6ki9.onrender.com')
-            while True:
-                time.sleep(300)
-                try:
-                    requests.get(f"{url}/health", timeout=10)
-                    print("📡 Пинг выполнен")
-                except Exception as e:
-                    print(f"❌ Пинг не удался: {e}")
-
-        ping_thread = threading.Thread(target=self_ping, daemon=True)
-        ping_thread.start()
-        print("🔄 Автопинг запущен — бот не уснёт")
-
-        print("✅ Бот запущен!")
-        app.run_polling()
-        
-    except Exception as e:
-        import traceback
-        print("❌ Ошибка в main:")
-        traceback.print_exc()
-
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
-    main()
+            [KeyboardButton("💬 Тренировка общения"), KeyboardButton("📊 Тест на тревожность")],
+            [KeyboardButton("🆘 Помощь
