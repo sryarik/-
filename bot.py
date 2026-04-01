@@ -87,7 +87,6 @@ EXERCISES = {
     }
 }
 
-# ===== ЗАДАНИЯ (ИНТЕРАКТИВНЫЕ) =====
 # ===== ЗАДАНИЯ =====
 TASKS = {
     "morning_intention": {
@@ -380,7 +379,6 @@ async def test_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return DIALOG
 
 async def task_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Перенаправляем на интерактивные задания
     await show_tasks(update, context)
     return TASK_STATE
 
@@ -408,7 +406,8 @@ async def show_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=reply_markup,
         parse_mode='Markdown'
     )
-    async def handle_task_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+async def handle_task_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Начало интерактивного задания"""
     query = update.callback_query
     await query.answer()
@@ -450,7 +449,6 @@ async def handle_task_answer(update: Update, context: ContextTypes.DEFAULT_TYPE)
         )
         return TASK_STATE
     else:
-        # Анализ ответов через нейросеть с просьбой дать совет
         analysis_prompt = f"""
 Ты психолог. Пользователь выполнил задание "{task['name']}".
 
@@ -463,15 +461,11 @@ async def handle_task_answer(update: Update, context: ContextTypes.DEFAULT_TYPE)
 3. Если видишь тревожные паттерны — мягко укажи и предложи способ
 4. Ответ должен быть коротким (3-5 предложений), но содержательным
 
-Пример ответа:
-"Я слышу, что ты чувствуешь напряжение в шее. Это очень частая реакция на стресс. Попробуй сейчас медленно повернуть голову влево и вправо — даже 10 секунд такого движения помогут снять зажим. Завтра попробуй обратить внимание, когда именно появляется это напряжение."
-
 Формат ответа: без лишних вступлений, просто текст совета и поддержки.
 """
         
         analysis = await ask_ai(analysis_prompt, update.effective_user.first_name)
         
-        # Добавляем короткий общий совет по заданию
         task_tips = {
             "morning_intention": "💡 Совет: Утреннее намерение работает лучше, если записать его и перечитать днём. Это возвращает фокус.",
             "body_check": "💡 Совет: Делай сканирование тела 2-3 раза в день — тревога быстрее замечается и отпускается.",
@@ -491,7 +485,6 @@ async def handle_task_answer(update: Update, context: ContextTypes.DEFAULT_TYPE)
         
         await update.message.reply_text(result_text, parse_mode='Markdown')
         
-        # Очищаем данные
         del context.user_data['current_task']
         del context.user_data['task_answers']
         del context.user_data['task_step']
@@ -655,9 +648,8 @@ def main():
         app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, talk))
         app.add_handler(CallbackQueryHandler(button_callback, pattern="^(ex_|back_ex|menu|task_start_|back_task)$"))
 
-        # Запускаем пинг
         def self_ping():
-            url = os.environ.get('RENDER_EXTERNAL_URL', 'https://psychologist-bot.onrender.com')
+            url = os.environ.get('RENDER_EXTERNAL_URL', 'https://telegram-6ki9.onrender.com')
             while True:
                 time.sleep(300)
                 try:
