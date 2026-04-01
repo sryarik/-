@@ -409,26 +409,8 @@ async def show_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode='Markdown'
     )
 
-async def handle_task_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Начало интерактивного задания"""
-    query = update.callback_query
-    await query.answer()
-    
-    task_key = query.data.replace("task_start_", "")
-    context.user_data['current_task'] = task_key
-    context.user_data['task_answers'] = []
-    context.user_data['task_step'] = 0
-    
-    task = TASKS[task_key]
-    await query.edit_message_text(
-        f"📝 **{task['name']}**\n_{task['desc']}_\n\n"
-        f"**Вопрос 1 из {len(task['questions'])}:**\n{task['questions'][0]}",
-        parse_mode='Markdown'
-    )
-    return TASK_STATE
-
 async def handle_task_answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработка ответов на вопросы задания"""
+    """Обработка ответов на вопросы задания с обратной связью"""
     text = update.message.text
     
     current_task = context.user_data.get('current_task')
@@ -451,13 +433,45 @@ async def handle_task_answer(update: Update, context: ContextTypes.DEFAULT_TYPE)
         )
         return TASK_STATE
     else:
-        # Отправляем ответы в нейросеть для анализа
-        analysis = await ask_ai(
-            f"Пользователь выполнил задание '{task['name']}'. Его ответы:\n" + "\n".join(answers),
-            "психолог"
-        )
+        # Анализ ответов через нейросеть с просьбой дать совет
+        analysis_prompt = f"""
+Ты психолог. Пользователь выполнил задание "{task['name']}".
+
+Вот его ответы на вопросы:
+{chr(10).join([f"{i+1}. {a}" for i, a in enumerate(answers)])}
+
+Твоя задача:
+1. Тепло отреагируй на ответы (поддержи, отметь, что услышал)
+2. Дай 1-2 конкретных совета, связанных с этим заданием
+3. Если видишь тревожные паттерны — мягко укажи и предложи способ
+4. Ответ должен быть коротким (3-5 предложений), но содержательным
+
+Пример ответа:
+"Я слышу, что ты чувствуешь напряжение в шее. Это очень частая реакция на стресс. Попробуй сейчас медленно повернуть голову влево и вправо — даже 10 секунд такого движения помогут снять зажим. Завтра попробуй обратить внимание, когда именно появляется это напряжение."
+
+Формат ответа: без лишних вступлений, просто текст совета и поддержки.
+"""
         
-        result_text = f"✨ **Задание выполнено!**\n\n{analysis}\n\nТы молодец! 🌟\n\nНажми /start чтобы вернуться в меню"
+        analysis = await ask_ai(analysis_prompt, update.effective_user.first_name)
+        
+        # Добавляем короткий общий совет по заданию
+        task_tips = {
+            "morning_intention": "💡 Совет: Утреннее намерение работает лучше, если записать его и перечитать днём. Это возвращает фокус.",
+            "body_check": "💡 Совет: Делай сканирование тела 2-3 раза в день — тревога быстрее замечается и отпускается.",
+            "thought_recording": "💡 Совет: Когда записываешь тревожную мысль, всегда добавляй вопрос: «А что, если всё пойдёт хорошо?»",
+            "comfort_place": "💡 Совет: Практикуй визуализацию каждый день по 1-2 минуты — со временем образ станет очень устойчивым.",
+            "small_action": "💡 Совет: Если не можешь сделать даже маленький шаг — сделай ещё меньше. Главное — начать движение.",
+            "self_support": "💡 Совет: Запиши эти слова в заметки и перечитывай в трудный момент. Поддержка себя — навык.",
+            "letting_go_exercise": "💡 Совет: Отпускание не происходит за раз. Возвращайся к этому упражнению, когда чувствуешь тяжесть.",
+            "joy_finding": "💡 Совет: Создай список «маленьких радостей» на случай, когда трудно вспомнить, что тебя радует.",
+            "perspective_shift": "💡 Совет: Представь, что ситуация случилась с лучшим другом. Что бы ты ему посоветовал?",
+            "breath_focus": "💡 Совет: Поставь напоминание на телефоне «подыши» 2-3 раза в день. Регулярность важнее длительности."
+        }
+        
+        general_tip = task_tips.get(current_task, "💡 Совет: Регулярная практика этих заданий формирует новый, более спокойный способ реагировать на стресс.")
+        
+        result_text = f"✨ **Задание выполнено!**\n\n{analysis}\n\n{general_tip}\n\nТы молодец. 🌿"
+        
         await update.message.reply_text(result_text, parse_mode='Markdown')
         
         # Очищаем данные
