@@ -26,8 +26,8 @@ OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 # Состояния
 TEST, DIALOG = range(2)
-# Добавь в начало файла (после TEST, DIALOG)
 TASK_STATE = 3
+
 # Хранилище данных пользователей
 user_data = defaultdict(lambda: {
     "name": None,
@@ -37,8 +37,6 @@ user_data = defaultdict(lambda: {
     "level": 1
 })
 
-# ===== ТЕСТ GAD-7 =====
-GAD7_QUESTIONS = [
 # ===== ТЕСТ НА ТРЕВОЖНОСТЬ (УЛУЧШЕННЫЙ) =====
 GAD7_QUESTIONS = [
     "1️⃣ Чувствуете ли вы напряжение, не можете расслабиться?",
@@ -51,14 +49,13 @@ GAD7_QUESTIONS = [
     "8️⃣ Часто ли вы чувствуете раздражение или злость?",
     "9️⃣ Бывает ли, что вы не можете усидеть на месте?",
     "🔟 Чувствуете ли вы, что всё идёт не так, как хотелось бы?"
-]  # 👈 Здесь должна быть только одна закрывающая скобка
+]
 
 ANSWERS = [
     ("✅ Совсем нет", 0),
     ("⚠️ Иногда (1-3 дня в неделю)", 1),
     ("😟 Часто (4-6 дней в неделю)", 2),
     ("😰 Почти каждый день", 3)
-]
 ]
 
 def interpret_gad7(score):
@@ -90,8 +87,6 @@ EXERCISES = {
     }
 }
 
-# ===== ЗАДАНИЯ =====
-# ===== ЗАДАНИЯ (ИНТЕРАКТИВНЫЕ) =====
 # ===== ЗАДАНИЯ (ИНТЕРАКТИВНЫЕ) =====
 TASKS = {
     "mood_diary": {
@@ -122,6 +117,7 @@ TASKS = {
         ]
     }
 }
+
 # ===== КРИЗИСНЫЕ КОНТАКТЫ =====
 CRISIS_CONTACTS = """
 🚨 **Если вам плохо, позвоните:**
@@ -139,12 +135,12 @@ async def ask_ai(user_message, user_name):
     headers = {
         "Authorization": f"Bearer {OPENROUTER_API_KEY}",
         "Content-Type": "application/json",
-        "HTTP-Referer": "https://t.me/your_bot_username",  # замени на username бота
+        "HTTP-Referer": "https://t.me/your_bot_username",
         "X-Title": "Psychologist Bot"
     }
 
     payload = {
-        "model": "openrouter/free",  # авто-выбор бесплатной модели
+        "model": "openrouter/free",
         "messages": [
             {"role": "system", "content": f"Ты эмпатичный психолог. Имя клиента: {user_name}. Отвечай тепло, поддерживающе, задавай уточняющие вопросы. Не давай пустых советов."},
             {"role": "user", "content": user_message}
@@ -162,7 +158,7 @@ async def ask_ai(user_message, user_name):
                 return data["choices"][0]["message"]["content"]
 
             if response.status_code == 429:
-                wait_time = 2 ** attempt  # 1, 2, 4 секунды
+                wait_time = 2 ** attempt
                 await asyncio.sleep(wait_time)
                 continue
 
@@ -202,12 +198,12 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 /profile — Твой профиль и статистика
 /dialog — Перейти в режим диалога с психологом
 /tips — Советы для снижения тревожности
-/test — Пройти тест на тревожность (GAD-7)
+/test — Пройти тест на тревожность
 /task — Получить задание для саморазвития
 /levels — Твой текущий уровень и прогресс
 /crisis — Контакты экстренной помощи
 
-Также ты можешь пользоваться кнопками меню и просто писать о своих чувствах.
+Также ты можешь пользоваться кнопками меню.
     """
     await update.message.reply_text(help_text, parse_mode='Markdown')
 
@@ -227,7 +223,7 @@ async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
 Текущий уровень: {level}
 """
     if last_test is not None:
-        profile_text += f"Последний тест: {last_test} баллов ({interpret_gad7(last_test)})\nДата: {last_test_date}\n"
+        profile_text += f"Последний тест: {last_test} баллов\nДата: {last_test_date}\n"
     else:
         profile_text += "Тест на тревожность ещё не пройден.\n"
     profile_text += "\nПродолжай общаться, чтобы повышать уровень!"
@@ -242,9 +238,9 @@ async def tips(update: Update, context: ContextTypes.DEFAULT_TYPE):
 💡 **Советы для снижения тревожности**
 
 1. **Дыхание** – делай глубокие вдохи и медленные выдохи.
-2. **Заземление** – используй технику 5-4-3-2-1 (найди 5 вещей вокруг...).
-3. **Движение** – прогулка или лёгкая разминка помогают снять напряжение.
-4. **Разговор** – поделись своими чувствами с близкими или напиши мне.
+2. **Заземление** – используй технику 5-4-3-2-1.
+3. **Движение** – прогулка помогает снять напряжение.
+4. **Разговор** – поделись чувствами с близкими или напиши мне.
 5. **Ограничь новости** – слишком много информации усиливает тревогу.
 6. **Режим сна** – старайся ложиться и вставать в одно время.
 
@@ -272,8 +268,8 @@ async def test_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['test_answers'] = []
     context.user_data['test_step'] = 0
     await update.message.reply_text(
-        "📊 **Тест на тревожность (GAD-7)**\n\n"
-        "Оцени, как часто за последние 2 недели тебя беспокоили следующие проблемы:\n"
+        "📊 **Тест на тревожность**\n\n"
+        "Оцени, как часто за последние 2 недели тебя беспокоили эти проблемы:\n"
         f"{GAD7_QUESTIONS[0]}\n\n"
         "Выбери вариант ответа:",
         reply_markup=generate_answer_keyboard()
@@ -308,8 +304,8 @@ async def test_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         result_text = (
             f"✅ **Тест завершён!**\n\n"
             f"📊 **Сумма баллов:** {total}\n"
-            f"🧠 **Уровень тревожности:** {interpretation}\n\n"
-            f"Если тебе нужна поддержка, напиши мне или обратись к специалисту."
+            f"🧠 **Результат:** {interpretation}\n\n"
+            f"Если тебе нужна поддержка, напиши мне."
         )
         await query.edit_message_text(result_text, parse_mode='Markdown')
         user_id = update.effective_user.id
@@ -320,11 +316,9 @@ async def test_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return DIALOG
 
 async def task_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    import random
-    task_key = random.choice(list(TASKS.keys()))
-    task = TASKS[task_key]
-    text = f"**{task['name']}**\n_{task['desc']}_\n\n**Задание:** {task['task']}"
-    await update.message.reply_text(text, parse_mode='Markdown')
+    # Перенаправляем на интерактивные задания
+    await show_tasks(update, context)
+    return TASK_STATE
 
 async def crisis(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(CRISIS_CONTACTS, parse_mode='Markdown')
@@ -351,54 +345,6 @@ async def show_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode='Markdown'
     )
 
-async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    data = query.data
-    if data == "menu":
-        keyboard = [
-            [KeyboardButton("🧘 Упражнения"), KeyboardButton("📝 Задания")],
-            [KeyboardButton("📊 Тест на тревожность"), KeyboardButton("🆘 Помощь")],
-            [KeyboardButton("💬 Поговорить")]
-        ]
-        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-        await query.message.reply_text("Главное меню:", reply_markup=reply_markup)
-        return
-    if data.startswith("ex_"):
-        key = data[3:]
-        ex = EXERCISES.get(key)
-        if ex:
-            text = f"**{ex['name']}**\n_{ex['desc']}_\n\n{ex['text']}"
-            await query.edit_message_text(text, parse_mode='Markdown')
-            kb = [[InlineKeyboardButton("◀️ К упражнениям", callback_data="back_ex")]]
-            await query.message.reply_text("Выполни упражнение. Когда захочешь вернуться, нажми кнопку.",
-                                           reply_markup=InlineKeyboardMarkup(kb))
-    elif data == "back_ex":
-        keyboard = [
-            [InlineKeyboardButton(ex["name"], callback_data=f"ex_{key}")]
-            for key, ex in EXERCISES.items()
-        ]
-        keyboard.append([InlineKeyboardButton("◀️ В меню", callback_data="menu")])
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        await query.edit_message_text("Выбери упражнение:", reply_markup=reply_markup)
-    elif data.startswith("task_"):
-        key = data[5:]
-        tsk = TASKS.get(key)
-        if tsk:
-            text = f"**{tsk['name']}**\n_{tsk['desc']}_\n\n**Задание:** {tsk['task']}"
-            await query.edit_message_text(text, parse_mode='Markdown')
-            kb = [[InlineKeyboardButton("◀️ К заданиям", callback_data="back_task")]]
-            await query.message.reply_text("Когда выполнишь, можешь поделиться мыслями.",
-                                           reply_markup=InlineKeyboardMarkup(kb))
-    elif data == "back_task":
-        keyboard = [
-            [InlineKeyboardButton(tsk["name"], callback_data=f"task_{key}")]
-            for key, tsk in TASKS.items()
-        ]
-        keyboard.append([InlineKeyboardButton("◀️ В меню", callback_data="menu")])
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        await query.edit_message_text("Выбери задание:", reply_markup=reply_markup)
-        # ===== ОБРАБОТЧИК ЗАДАНИЙ =====
 async def handle_task_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Начало интерактивного задания"""
     query = update.callback_query
@@ -419,7 +365,6 @@ async def handle_task_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_task_answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработка ответов на вопросы задания"""
-    user_id = update.effective_user.id
     text = update.message.text
     
     current_task = context.user_data.get('current_task')
@@ -456,6 +401,61 @@ async def handle_task_answer(update: Update, context: ContextTypes.DEFAULT_TYPE)
         del context.user_data['task_answers']
         del context.user_data['task_step']
         return DIALOG
+
+async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    data = query.data
+    
+    if data == "menu":
+        keyboard = [
+            [KeyboardButton("🧘 Упражнения"), KeyboardButton("📝 Задания")],
+            [KeyboardButton("📊 Тест на тревожность"), KeyboardButton("🆘 Помощь")],
+            [KeyboardButton("💬 Поговорить")]
+        ]
+        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+        await query.message.reply_text("Главное меню:", reply_markup=reply_markup)
+        return
+    
+    if data.startswith("ex_"):
+        key = data[3:]
+        ex = EXERCISES.get(key)
+        if ex:
+            text = f"**{ex['name']}**\n_{ex['desc']}_\n\n{ex['text']}"
+            await query.edit_message_text(text, parse_mode='Markdown')
+            kb = [[InlineKeyboardButton("◀️ К упражнениям", callback_data="back_ex")]]
+            await query.message.reply_text("Выполни упражнение. Когда захочешь вернуться, нажми кнопку.",
+                                           reply_markup=InlineKeyboardMarkup(kb))
+        return
+    
+    if data == "back_ex":
+        keyboard = [
+            [InlineKeyboardButton(ex["name"], callback_data=f"ex_{key}")]
+            for key, ex in EXERCISES.items()
+        ]
+        keyboard.append([InlineKeyboardButton("◀️ В меню", callback_data="menu")])
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text("Выбери упражнение:", reply_markup=reply_markup)
+        return
+    
+    if data.startswith("task_start_"):
+        return await handle_task_start(update, context)
+    
+    if data == "back_task":
+        await show_tasks_from_callback(query)
+        return
+
+async def show_tasks_from_callback(query):
+    keyboard = []
+    for key, task in TASKS.items():
+        keyboard.append([InlineKeyboardButton(task["name"], callback_data=f"task_start_{key}")])
+    keyboard.append([InlineKeyboardButton("◀️ В меню", callback_data="menu")])
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await query.edit_message_text(
+        "📝 **Задания для саморазвития**\n\nВыбери задание:",
+        reply_markup=reply_markup,
+        parse_mode='Markdown'
+    )
 
 # ===== ОБЩЕНИЕ =====
 async def talk(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -528,14 +528,20 @@ def main():
         )
         
         task_conv = ConversationHandler(
-            entry_points=[CallbackQueryHandler(handle_task_start, pattern="^task_start_")],
+            entry_points=[
+                CommandHandler("task", task_command),
+                MessageHandler(filters.Regex("^📝 Задания$"), task_command),
+                CallbackQueryHandler(handle_task_start, pattern="^task_start_")
+            ],
             states={
                 TASK_STATE: [
+                    MessageHandler(filters.TEXT & ~filters.COMMAND, handle_task_answer),
                     CallbackQueryHandler(handle_task_start, pattern="^task_start_"),
-                    MessageHandler(filters.TEXT & ~filters.COMMAND, handle_task_answer)
+                    CallbackQueryHandler(show_tasks_from_callback, pattern="^back_task$"),
+                    CallbackQueryHandler(button_callback, pattern="^menu$")
                 ]
             },
-            fallbacks=[CommandHandler("start", start)]
+            fallbacks=[CommandHandler("start", start), CommandHandler("menu", start)]
         )
         
         app.add_handler(CommandHandler("start", start))
@@ -545,7 +551,6 @@ def main():
         app.add_handler(CommandHandler("tips", tips))
         app.add_handler(CommandHandler("levels", levels))
         app.add_handler(CommandHandler("crisis", crisis))
-        app.add_handler(CommandHandler("task", task_command))
         app.add_handler(test_conv)
         app.add_handler(task_conv)
         
@@ -553,9 +558,9 @@ def main():
         app.add_handler(MessageHandler(filters.Regex("^📝 Задания$"), show_tasks))
         app.add_handler(MessageHandler(filters.Regex("^🆘 Помощь$"), crisis))
         app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, talk))
-        app.add_handler(CallbackQueryHandler(button_callback, pattern="^(ex_|task_|back_|menu|back_ex|back_task)$"))
+        app.add_handler(CallbackQueryHandler(button_callback, pattern="^(ex_|back_ex|menu|task_start_|back_task)$"))
 
-        # ===== ЗАПУСКАЕМ ПИНГ ВНУТРИ MAIN (ПЕРЕД polling) =====
+        # Запускаем пинг
         def self_ping():
             url = os.environ.get('RENDER_EXTERNAL_URL', 'https://psychologist-bot.onrender.com')
             while True:
@@ -569,7 +574,6 @@ def main():
         ping_thread = threading.Thread(target=self_ping, daemon=True)
         ping_thread.start()
         print("🔄 Автопинг запущен — бот не уснёт")
-        # ===== КОНЕЦ БЛОКА ПИНГА =====
 
         print("✅ Бот запущен!")
         app.run_polling()
