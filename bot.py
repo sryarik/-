@@ -465,6 +465,25 @@ def main():
         import traceback
         print("❌ Ошибка в main:")
         traceback.print_exc()
+        import requests
+import threading
+import time
+
+def self_ping():
+    url = os.environ.get('RENDER_EXTERNAL_URL', 'https://psychologist-bot.onrender.com')
+    while True:
+        time.sleep(300)  # каждые 5 минут
+        try:
+            requests.get(f"{url}/health", timeout=10)
+            print("📡 Пинг выполнен")
+        except Exception as e:
+            print(f"❌ Пинг не удался: {e}")
+
+# Запускаем пинг в отдельном потоке
+ping_thread = threading.Thread(target=self_ping, daemon=True)
+ping_thread.start()
+print("🔄 Автопинг запущен — бот не уснёт")
+        
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
