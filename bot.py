@@ -218,8 +218,8 @@ async def ask_ai(user_message, user_name):
         "X-Title": "Psychologist Bot"
     }
 
-    payload = {
-        "model": "google/gemma-2-9b-it:free",
+payload = {
+    "model": "openrouter/free",
         "messages": [
             {"role": "system", "content": f"Ты эмпатичный психолог. Имя клиента: {user_name}. Отвечай тепло, поддерживающе, задавай уточняющие вопросы. Не давай пустых советов."},
             {"role": "user", "content": user_message}
